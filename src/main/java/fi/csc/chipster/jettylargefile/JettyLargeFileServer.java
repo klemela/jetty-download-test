@@ -20,7 +20,7 @@ public class JettyLargeFileServer {
         ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         servletHandler.setContextPath("/");
 
-        URI baseUri = URI.create("http://localhost:8800");
+        URI baseUri = URI.create("http://0.0.0.0:8800");
 
         servletHandler.addServlet(
                 new ServletHolder(new JettyLargeFileServlet()),
