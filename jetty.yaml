@@ -1,0 +1,139 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: jetty-template
+objects:
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: jetty-server
+    name: jetty-server
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: jetty-server:latest
+    source:
+      git:
+        ref: main
+        uri: https://github.com/klemela/jetty-download-test.git
+      type: Git
+      dockerfile: |
+        FROM ubuntu:20.04
+
+        # install Java
+        # set timezone, otherwise one of these packages depend on tzdata, which tries to ask it interactively
+        RUN apt-get update -y \
+          && ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && echo "Etc/UTC" > /etc/timezone \
+          && apt-get install -y wget software-properties-common apt-transport-https \
+          && wget -O- https://apt.corretto.aws/corretto.key | apt-key add - \
+          && add-apt-repository 'deb https://apt.corretto.aws stable main' \
+          && apt-get install -y java-21-amazon-corretto-jdk \
+          && apt-get clean
+        
+        COPY . jetty-download-test
+
+        RUN cd jetty-download-test \
+          && export JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8 \
+          && ./gradlew distTar \
+          && tar -zxf build/distributions/jetty-download-test.tar.gz \
+          && mkdir -p /opt/chipster/lib \
+          && mv jetty-download-test/lib/*.jar /opt/chipster/lib \
+          && chmod -R ugo+rwx /opt/chipster \
+          && ls -lah /opt/chipster/lib \
+          && rm -rf ../jetty-download-test
+
+        WORKDIR /opt/chipster
+
+        CMD java -cp lib/*:  fi.csc.chipster.jettylargefile.JettyLargeFileServer
+
+      type: Dockerfile
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          # name: nginx:latest
+          name: ubuntu:20.04
+      type: Docker
+    triggers:
+      - type: ConfigChange
+
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    name: ubuntu
+  spec:
+    tags:
+      - from:
+          kind: DockerImage
+          name: "ubuntu:20.04"
+        name: "20.04"
+
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: jetty-server
+    name: jetty-server
+
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: jetty-server
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        deployment: jetty-server
+    template:
+      metadata:
+        labels:
+          deployment: jetty-server
+      spec:
+        containers:
+          - name: server
+            image: ${IMAGE_REGISTRY}/${NAMESPACE}/image-registry.openshift-image-registry.svc:5000s:latest
+            imagePullPolicy: Always
+            ports:
+              - name: api
+                containerPort: 8800
+                protocol: TCP
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: jetty-server
+  spec:
+    ports:
+      # the service can be accessed with the default port
+      - port: 80
+        # use the named port of the deployment
+        targetPort: api
+        protocol: TCP
+        name: api
+    selector:
+      deployment: jetty-server
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: jetty-server
+  spec:
+    host: jetty-server.${NAMESPACE}.${OKD_DOMAIN}
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: jetty-server
+      weight: 100
+    wildcardPolicy: None
+
+parameters:
+- name: NAMESPACE
+  reguired: true
+- name: OKD_DOMAIN
+  value: 2.rahtiapp.fi
+- name: IMAGE_REGISTRY
+  value: image-registry.openshift-image-registry.svc:5000
