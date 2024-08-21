@@ -18,6 +18,8 @@ objects:
 
           RUN  sed -i 's/listen       80;/listen       8080;/g' /etc/nginx/conf.d/default.conf
 
+          #RUN echo 'disable_symlinks off;' >> /etc/nginx/conf.d/default.conf
+
           RUN cat /etc/nginx/conf.d/default.conf
 
         type: Dockerfile
@@ -53,6 +55,8 @@ objects:
     metadata:
       name: nginx-server
     spec:
+      strategy:
+        type: Recreate
       replicas: 1
       selector:
         matchLabels:
@@ -65,11 +69,11 @@ objects:
           initContainers:
             - name: generate-test-file
               image: ${IMAGE_REGISTRY}/${NAMESPACE}/nginx-server:latest
-              command:
-                [
+              command: [
                   "bash",
                   "-c",
-                  "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_90Gi bs=90M count=1024 status=progress",
+                  # "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_90Gi bs=90M count=1024 status=progress",
+                  "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_1Gi bs=1M count=1024 status=progress",
                 ]
               volumeMounts:
                 - name: web-root
@@ -91,8 +95,9 @@ objects:
                   mountPath: /var/run
           volumes:
             - name: web-root
-              persistentVolumeClaim:
-                claimName: nginx-server-web-root
+              emptyDir: {}
+              # persistentVolumeClaim:
+              #   claimName: nginx-server-web-root
             - name: cache
               emptyDir: {}
             - name: var-run
@@ -118,7 +123,7 @@ objects:
     metadata:
       name: nginx-server
     spec:
-      host: nginx-server.${NAMESPACE}.${OKD_DOMAIN}
+      host: nginx-server-${NAMESPACE}.${OKD_DOMAIN}
       tls:
         insecureEdgeTerminationPolicy: Redirect
         termination: edge

@@ -7,6 +7,42 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
+      build: java
+    name: java
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: java:latest
+    source:
+      dockerfile: |
+        FROM ubuntu:20.04
+
+        # install Java
+        # set timezone, otherwise one of these packages depend on tzdata, which tries to ask it interactively
+        RUN apt-get update -y \
+          && ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && echo "Etc/UTC" > /etc/timezone \
+          && apt-get install -y wget software-properties-common apt-transport-https \
+          && wget -O- https://apt.corretto.aws/corretto.key | apt-key add - \
+          && add-apt-repository 'deb https://apt.corretto.aws stable main' \
+          && apt-get install -y java-21-amazon-corretto-jdk \
+          && apt-get clean
+
+      type: Dockerfile
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          # name: nginx:latest
+          name: ubuntu:20.04
+      type: Docker
+    triggers:
+      - type: ConfigChange
+
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    labels:
       build: jetty-server
     name: jetty-server
   spec:
@@ -20,17 +56,7 @@ objects:
         uri: https://github.com/klemela/jetty-download-test.git
       type: Git
       dockerfile: |
-        FROM ubuntu:20.04
-
-        # install Java
-        # set timezone, otherwise one of these packages depend on tzdata, which tries to ask it interactively
-        RUN apt-get update -y \
-          && ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime && echo "Etc/UTC" > /etc/timezone \
-          && apt-get install -y wget software-properties-common apt-transport-https \
-          && wget -O- https://apt.corretto.aws/corretto.key | apt-key add - \
-          && add-apt-repository 'deb https://apt.corretto.aws stable main' \
-          && apt-get install -y java-21-amazon-corretto-jdk \
-          && apt-get clean
+        FROM java:latest
         
         COPY . jetty-download-test
 
@@ -54,10 +80,11 @@ objects:
         from:
           kind: ImageStreamTag
           # name: nginx:latest
-          name: ubuntu:20.04
+          name: java:latest
       type: Docker
     triggers:
       - type: ConfigChange
+
 
 - apiVersion: image.openshift.io/v1
   kind: ImageStream
@@ -69,6 +96,13 @@ objects:
           kind: DockerImage
           name: "ubuntu:20.04"
         name: "20.04"
+
+- apiVersion: image.openshift.io/v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: java
+    name: java
 
 - apiVersion: image.openshift.io/v1
   kind: ImageStream
@@ -93,11 +127,14 @@ objects:
       spec:
         containers:
           - name: server
-            image: ${IMAGE_REGISTRY}/${NAMESPACE}/image-registry.openshift-image-registry.svc:5000s:latest
+            image: ${IMAGE_REGISTRY}/${NAMESPACE}/jetty-server:latest
             imagePullPolicy: Always
             ports:
               - name: api
                 containerPort: 8800
+                protocol: TCP
+              - name: api2
+                containerPort: 8801
                 protocol: TCP
 
 - apiVersion: v1
@@ -115,12 +152,28 @@ objects:
     selector:
       deployment: jetty-server
 
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: jetty-server2
+  spec:
+    ports:
+      # the service can be accessed with the default port
+      - port: 80
+        # use the named port of the deployment
+        targetPort: api2
+        protocol: TCP
+        name: api2
+    selector:
+      deployment: jetty-server
+
+
 - apiVersion: route.openshift.io/v1
   kind: Route
   metadata:
     name: jetty-server
   spec:
-    host: jetty-server.${NAMESPACE}.${OKD_DOMAIN}
+    host: jetty-server-${NAMESPACE}.${OKD_DOMAIN}
     tls:
       insecureEdgeTerminationPolicy: Redirect
       termination: edge
@@ -129,6 +182,22 @@ objects:
       name: jetty-server
       weight: 100
     wildcardPolicy: None
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: jetty-server2
+  spec:
+    host: jetty-server2-${NAMESPACE}.${OKD_DOMAIN}
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: jetty-server2
+      weight: 100
+    wildcardPolicy: None
+
 
 parameters:
 - name: NAMESPACE
