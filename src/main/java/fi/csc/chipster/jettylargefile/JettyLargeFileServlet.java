@@ -45,6 +45,11 @@ public class JettyLargeFileServlet extends HttpServlet {
             scale = 1024l * 1024 * 1024;
         }
 
+        if (sizeString.contains("Ti")) {
+            sizeString = sizeString.replace("Ti", "");
+            scale = 1024l * 1024 * 1024 * 1024;
+        }
+
         long size = Long.parseLong(sizeString) * scale;
 
         InputStream fileStream = new NullInputStream(size);

@@ -18,7 +18,7 @@ public class JettyLargeFileServer {
 
     private Server httpServer;
 
-    public void startServer(int port, boolean tcpKeepalive) throws Exception {
+    public void startServer(int port, boolean asyncSupported) throws Exception {
 
         Logger logger = LogManager.getLogger();
 
@@ -28,39 +28,15 @@ public class JettyLargeFileServer {
         URI baseUri = new URI("http", null, "0.0.0.0", port, null,
                 null, null);
 
-        servletHandler.addServlet(
-                new ServletHolder(new JettyLargeFileServlet()),
-                "/*");
+        ServletHolder servletHolder = servletHandler.addServlet(new JettyLargeFileServlet(), "/*");
+
+        servletHolder.setAsyncSupported(asyncSupported);
 
         httpServer = new Server();
 
         ServerConnector connector = new ServerConnector(httpServer);
         connector.setPort(baseUri.getPort());
         connector.setHost(baseUri.getHost());
-
-        if (tcpKeepalive) {
-
-            logger.info("configure tcp keepalive");
-
-            Connection.Listener listener = new Connection.Listener() {
-                @Override
-                public void onOpened(Connection connection) {
-                    Object t = connection.getEndPoint().getTransport();
-                    if (t instanceof SocketChannel c) {
-                        try {
-                            c.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
-                            c.setOption(ExtendedSocketOptions.TCP_KEEPIDLE, 2);
-                            // c.setOption(ExtendedSocketOptions.TCP_KEEPCOUNT, 2);
-                            c.setOption(ExtendedSocketOptions.TCP_KEEPINTERVAL, 1);
-                        } catch (IOException e) {
-                            logger.warn("failed to set socket options", e);
-                        }
-
-                    }
-                }
-            };
-            connector.addBean(listener);
-        }
 
         httpServer.addConnector(connector);
 

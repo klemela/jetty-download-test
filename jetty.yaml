@@ -130,74 +130,87 @@ objects:
             image: ${IMAGE_REGISTRY}/${NAMESPACE}/jetty-server:latest
             imagePullPolicy: Always
             ports:
-              - name: api
+              - name: api0
                 containerPort: 8800
                 protocol: TCP
-              - name: api2
+              - name: api1
                 containerPort: 8801
                 protocol: TCP
 
 - apiVersion: v1
   kind: Service
   metadata:
-    name: jetty-server
+    name: jetty-server0
   spec:
     ports:
       # the service can be accessed with the default port
       - port: 80
         # use the named port of the deployment
-        targetPort: api
+        targetPort: api0
         protocol: TCP
-        name: api
+        name: api0
     selector:
       deployment: jetty-server
 
 - apiVersion: v1
   kind: Service
   metadata:
-    name: jetty-server2
+    name: jetty-server1
   spec:
     ports:
       # the service can be accessed with the default port
       - port: 80
         # use the named port of the deployment
-        targetPort: api2
+        targetPort: api1
         protocol: TCP
-        name: api2
+        name: api1
     selector:
       deployment: jetty-server
-
 
 - apiVersion: route.openshift.io/v1
   kind: Route
   metadata:
     name: jetty-server
   spec:
-    host: jetty-server-${NAMESPACE}.${OKD_DOMAIN}
+    host: jetty-server-http-${NAMESPACE}.${OKD_DOMAIN}
+    # tls:
+    #   insecureEdgeTerminationPolicy: Redirect
+    #   termination: edge
+    to:
+      kind: Service
+      name: jetty-server0
+      weight: 100
+    # wildcardPolicy: None
+
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: jetty-server-https
+  spec:
+    host: jetty-server-https-${NAMESPACE}.${OKD_DOMAIN}
     tls:
       insecureEdgeTerminationPolicy: Redirect
       termination: edge
     to:
       kind: Service
-      name: jetty-server
+      name: jetty-server0
       weight: 100
     wildcardPolicy: None
 
 - apiVersion: route.openshift.io/v1
   kind: Route
   metadata:
-    name: jetty-server2
+    name: jetty-server-https-async
   spec:
-    host: jetty-server2-${NAMESPACE}.${OKD_DOMAIN}
+    host: jetty-server-https-${NAMESPACE}.${OKD_DOMAIN}
     tls:
       insecureEdgeTerminationPolicy: Redirect
       termination: edge
     to:
       kind: Service
-      name: jetty-server2
+      name: jetty-server1
       weight: 100
     wildcardPolicy: None
-
 
 parameters:
 - name: NAMESPACE
