@@ -72,8 +72,8 @@ objects:
               command: [
                   "bash",
                   "-c",
-                  # "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_90Gi bs=90M count=1024 status=progress",
-                  "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_1Gi bs=1M count=1024 status=progress",
+                  "rm /usr/share/nginx/html/*; truncate -s 1G /usr/share/nginx/html/sparse_1Gi; truncate -s 500G /usr/share/nginx/html/sparse_500Gi",
+                  # "rm /usr/share/nginx/html/*; dd if=/dev/zero of=/usr/share/nginx/html/zero_1Gi bs=1M count=1024 status=progress",
                 ]
               volumeMounts:
                 - name: web-root

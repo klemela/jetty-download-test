@@ -202,7 +202,7 @@ objects:
   metadata:
     name: jetty-server-https-async
   spec:
-    host: jetty-server-https-${NAMESPACE}.${OKD_DOMAIN}
+    host: jetty-server-https-async-${NAMESPACE}.${OKD_DOMAIN}
     tls:
       insecureEdgeTerminationPolicy: Redirect
       termination: edge

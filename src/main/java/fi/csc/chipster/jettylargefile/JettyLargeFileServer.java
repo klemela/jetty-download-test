@@ -1,18 +1,13 @@
 package fi.csc.chipster.jettylargefile;
 
-import java.io.IOException;
-import java.net.StandardSocketOptions;
 import java.net.URI;
-import java.nio.channels.SocketChannel;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
-import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import jdk.net.ExtendedSocketOptions;
 
 public class JettyLargeFileServer {
 
