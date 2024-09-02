@@ -14,7 +14,7 @@
     <Root level="info">
       <AppenderRef ref="Console"/>
     </Root>
-    <Logger name="org.eclipse.jetty" level="debug">
+    <Logger name="org.eclipse.jetty" level="info">
       <AppenderRef ref="Console"/>
       <AppenderRef ref="jetty"/>
     </Logger>

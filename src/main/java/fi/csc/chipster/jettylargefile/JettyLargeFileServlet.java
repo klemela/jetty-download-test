@@ -21,10 +21,12 @@ public class JettyLargeFileServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         String[] defaultSize = { "1Gi" };
+        String[] defaultChunked = { "true" };
 
         long GiB = 1024l * 1024 * 1024;
 
         String sizeString = request.getParameterMap().getOrDefault("size", defaultSize)[0];
+        String chunkedString = request.getParameterMap().getOrDefault("chunked", defaultChunked)[0];
 
         logger.info("requested size: " + sizeString);
 
@@ -52,9 +54,19 @@ public class JettyLargeFileServlet extends HttpServlet {
 
         long size = Long.parseLong(sizeString) * scale;
 
+        boolean chunked = Boolean.parseBoolean(chunkedString);
+
+        logger.info("use chunked encoding: " + chunked);
+
         InputStream fileStream = new NullInputStream(size);
 
         response.setStatus(HttpServletResponse.SC_OK);
+
+        logger.info("buffer size: " + response.getBufferSize());
+
+        if (!chunked) {
+            response.setContentLengthLong(size);
+        }
 
         OutputStream output = response.getOutputStream();
 
