@@ -29,6 +29,7 @@ public class JettyLargeFileServlet extends HttpServlet {
         String chunkedString = request.getParameterMap().getOrDefault("chunked", defaultChunked)[0];
 
         logger.info("requested size: " + sizeString);
+        logger.info("request protocol: " + request.getProtocol());
 
         long scale = 1;
 
